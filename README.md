@@ -1,6 +1,6 @@
 # Dominion - Online Multiplayer Edition
 
-A Python-based text implementation of the classic deck-building card game **Dominion**, enhanced with online multiplayer support.
+A Python-based web implementation of the classic deck-building card game **Dominion**, with online multiplayer support.
 
 ## Features
 
