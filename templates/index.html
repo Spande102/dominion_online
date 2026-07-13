@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Dominion Online</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="/static/game.js?v=3" defer></script>
+</head>
+
+<body>
+    <div id="lobby-overlay">
+        <div id="lobby-box">
+            <h2>Dominion Lobby</h2>
+
+            <div id="seat-selection">
+                <button onclick="selectSeat('Player 1')">Join as Player 1 (Host)</button>
+                <button onclick="selectSeat('Player 2')">Join as Player 2</button>
+                <button onclick="selectSeat('Player 3')">Join as Player 3</button>
+                <button onclick="selectSeat('Player 4')">Join as Player 4</button>
+            </div>
+
+            <div id="host-settings" style="display:none; margin-top:20px; border-top:1px solid #ccc; padding-top:15px;">
+                <h3>Game Settings</h3>
+                <label>Number of Players: <input type="number" id="num-players" value="2" min="2" max="6"></label>
+                <br><br>
+                <label>Kingdom:
+                    <select id="kingdom-mode" onchange="toggleManualInput()">
+                        <option value="random">Random</option>
+                        <option value="manual">Manual Selection</option>
+                    </select>
+                </label>
+                <div id="manual-input-area" style="display:none; margin-top:10px;">
+                    <label>Enter Card Names (comma separated):
+                        <textarea id="manual-card-list" rows="3" style="width:100%;"
+                            placeholder="Village, Smithy, Market..."></textarea>
+                    </label>
+                </div>
+                <div id="random-options" style="margin-top:10px;">
+                    <label><strong>Expansions:</strong></label><br>
+                    <label><input type="checkbox" name="expansion" value="Base" checked> Base</label>
+                    <label><input type="checkbox" name="expansion" value="Intrigue"> Intrigue</label>
+                    <label><input type="checkbox" name="expansion" value="Seaside"> Seaside</label>
+                    <label><input type="checkbox" name="expansion" value="Prosperity"> Prosperity</label>
+                    <label><input type="checkbox" name="expansion" value="Hinterlands"> Hinterlands</label>
+                    <label><input type="checkbox" name="expansion" value="Nocturne"> Nocturne</label>
+                    <br><br>
+                    <label><input type="checkbox" id="include-plat-col"> Include Platinum/Colony</label>
+                </div>
+                </label>
+                <br><br>
+                <button onclick="startGame()" style="background:#4CAF50; color:white;">Start Game</button>
+            </div>
+
+            <div id="waiting-message" style="display:none;">
+                <p>Waiting for Host to start...</p>
+            </div>
+        </div>
+    </div>
+    <!-- Game Over Overlay Removed -->
+    <script>
+        // Safety check to remove overlay if it exists (legacy cache)
+        const deadOverlay = document.getElementById('game-over-overlay');
+        if (deadOverlay) deadOverlay.remove();
+    </script>
+
+    <div id="game-container" style="display:none;">
+        <!-- Interaction Overlay -->
+        <div id="interaction-area"
+            style="display: none; background: rgba(0,0,0,0.8); color: white; padding: 10px; border-radius: 8px; margin-bottom: 10px; text-align: center;">
+            <span id="interaction-prompt" style="font-weight: bold; font-size: 1.2em;"></span>
+            <br><br>
+            <div id="interaction-controls">
+                <button onclick="confirmInteraction()"
+                    style="background:#4CAF50; color:white; padding:5px 15px; border:none; border-radius:4px; cursor:pointer;">Confirm</button>
+                <button onclick="cancelInteraction()"
+                    style="background:#f44336; color:white; padding:5px 15px; border:none; border-radius:4px; cursor:pointer; margin-left:10px;">Cancel</button>
+            </div>
+            <div id="interaction-helper" style="margin-top: 5px; font-size: 0.9em; color:#ddd;"></div>
+        </div>
+        <header>
+            <h1>Dominion Online</h1>
+            <div id="status-bar">
+                <span id="current-player"></span> |
+                <span id="phase"></span> |
+                <span id="actions"></span> Actions |
+                <span id="buys"></span> Buys |
+                <span id="coins"></span> Coins |
+                <span id="vp-tokens"></span> VP Tokens
+            </div>
+            <div id="controls">
+                <span id="my-identity" style="margin-right: 15px; font-weight: bold;"></span>
+                <button onclick="playTreasures()">Play Treasures</button>
+                <button onclick="endTurn()">End Turn</button>
+                <button onclick="toggleDarkMode()" id="dark-mode-btn" style="margin-left: 10px;">Dark Mode</button>
+                <button onclick="resignGame()" style="background-color: #e74c3c; margin-left:10px;">Resign</button>
+            </div>
+        </header>
+
+        <main>
+            <div id="supply-area">
+                <h2>Supply</h2>
+                <div class="supply-section">
+                    <h3>Kingdom Cards</h3>
+                    <div id="supply-kingdom" class="card-grid-5"></div>
+                </div>
+                <div class="supply-section">
+                    <h3>Base Cards</h3>
+                    <div id="supply-base" class="card-grid-small"></div>
+                </div>
+            </div>
+
+
+
+
+            <div id="play-area">
+                <h2>In Play</h2>
+                <div id="in-play-cards"></div>
+            </div>
+
+            <div id="player-area">
+                <h2>Your Hand</h2>
+                <div id="player-controls-row" style="display:flex; gap:20px; align-items:center;">
+                    <div id="hand-cards"></div>
+
+                    <div id="info-piles" style="display: flex; gap: 15px;">
+                        <div id="trash-area">
+                            <h4 style="margin:0 0 5px 0; text-align:center;">Trash</h4>
+                            <div id="trash-pile" class="card-pile" style="width:80px; height:110px; font-size:0.8em;">
+                                Empty</div>
+                        </div>
+                        <div id="discard-area">
+                            <h4 style="margin:0 0 5px 0; text-align:center;">Discard</h4>
+                            <div id="discard-pile" class="card-pile" style="width:80px; height:110px; font-size:0.8em;">
+                                Empty</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <aside id="sidebar">
+            <div id="logs">
+                <h3 style="margin-top:0;">Game Log</h3>
+                <div id="log-content"></div>
+            </div>
+            <div id="chat-history">
+                <h3 style="margin-top:0;">Chat</h3>
+                <div id="chat-content"></div>
+            </div>
+            <div id="chat-container">
+                <input type="text" id="chat-input" placeholder="Type a message...">
+                <button onclick="sendChat()">Send</button>
+            </div>
+        </aside>
+    </div>
+</body>
+
+</html>

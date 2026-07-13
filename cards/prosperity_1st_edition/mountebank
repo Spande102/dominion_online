@@ -1,0 +1,43 @@
+from card import Card
+
+def mountebank_effect(player, game):
+    player.coins += 2
+
+    for other in game.players:
+        if other is not player:
+            has_curse = any(c.name == "Curse" for c in other.hand)
+            print(f"\n{other.name}'s hand: {[c.name for c in other.hand]}")
+            if has_curse:
+                choice = input(f"{other.name}, do you want to discard a Curse? (y/n): ").strip().lower()
+                if choice == "y":
+                    curse_card = next(c for c in other.hand if c.name == "Curse")
+                    other.hand.remove(curse_card)
+                    other.discard_pile.append(curse_card)
+                    print(f"{other.name} discards a Curse.")
+                    continue  # Skip gaining Curse and Copper
+            # If no Curse or declined to discard
+            if "Curse" in game.supply and game.supply["Curse"]:
+                curse_card = game.supply["Curse"].pop()
+                other.discard_pile.append(curse_card)
+                print(f"{other.name} gains a Curse.")
+            else:
+                print("No Curse cards left in supply.")
+            if "Copper" in game.supply and game.supply["Copper"]:
+                copper_card = game.supply["Copper"].pop()
+                other.discard_pile.append(copper_card)
+                print(f"{other.name} gains a Copper.")
+            else:
+                print("No Copper cards left in supply.")
+
+
+
+Mountebank = Card(
+    "Mountebank",
+    cost=5,
+    card_type = ['Action','Attack'],
+    description="Each other player may discard a Curse. If they don't, they gain a Curse and a Copper.",
+    effect=mountebank_effect,
+    expansion = "prosperity_1st_edition" 
+)
+
+

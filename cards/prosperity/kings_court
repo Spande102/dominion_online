@@ -1,0 +1,23 @@
+from card import Card
+
+def kings_court_effect(player, game):
+
+    action_cards = [c for c in player.hand if "Action" in c.card_type]
+    if not action_cards:
+        print("No Action cards to Kings Court.")
+        return
+    chosen = player.choose_card_from(action_cards, "Choose Action to play thrice:")
+    player.hand.remove(chosen)
+    print(f"{player.name} plays {chosen.name} thrice.")
+    chosen.effect(player, game)
+    chosen.effect(player, game)
+    chosen.effect(player, game)
+
+Kings_Court = Card(
+    "King's Court",
+    cost=7,
+    card_type=["Action"],
+    description="You may play an Action card from your hand three times.",
+    effect=kings_court_effect,
+    expansion="base",
+)
